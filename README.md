@@ -1,0 +1,2 @@
+# CryptoTradingBot
+Multiple bot testing
