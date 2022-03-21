@@ -121,7 +121,8 @@ def ApplyStrategy():
     global gridInstance
     ma7=obj1.result["data"][0]["result"]["value"]
     ma25=obj1.result["data"][1]["result"]["value"]
-    
+
+    print("Current Status of the difference %d", ma7-ma25)
     #
     if not gridInstance["instance"][0]["status"]:
         if (ma7-ma25)<= gridInstance["instance"][0]["value"]:
@@ -153,6 +154,8 @@ def RunBot():
         global obj1
         obj1 = API.taapi.TaapiIndicator("binance","BTC/USDT","1m",indicator)
         obj1.SetIndicatorsValue()
+        print(obj1.result)
+        ApplyStrategy()
     except (requests.ConnectionError, requests.Timeout) as exception:
         print("No internet connection.")
 
