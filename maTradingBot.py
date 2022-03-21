@@ -20,9 +20,12 @@ import API.taapi
 import time
 import os.path
 import time
+from datetime import datetime
 importlib.reload(API.taapi)
+
 noOfGrids = 3
 gridDifference = 50
+
 gridInstance = '{"instance":['
 indicator = [
 	    {
@@ -49,7 +52,8 @@ exchange = ccxt.binanceus({
     "apiKey": config.BINANCE_API_KEY,
     "secret": config.BINANCE_SECRET_KEY
 })
-
+tradeAmmountUSDT= 50
+tradeAmmountBTC= float(tradeAmmountUSDT/exchange.fetch_ticker(orderCoinPair)["bid"])
 def CreateCsvfile():
     global writer
     global csvfile
@@ -59,7 +63,7 @@ def CreateCsvfile():
         print("File already exist continue with the already present file")
     else:
         with open('Dataset/MA7_MA25_Trading_1min.csv', 'w', newline='') as csvfile:
-            fieldnames = ['MovingAverage7/USDT', 'MovingAverage25/USDT', 'BinancePriceBTC/USDT', 'Time/HH:MM:SS']
+            fieldnames = ['GridValue', 'BuyTimeMA7/USDT','BuyTimeMA25/USDT', 'SellTimeMA7/USDT', 'SellTimeMA25/USDT','BTCAmmountBuying', 'BuyTimePriceBinanceBTC/USDT','SellTimePriceBinanceBTC/USDT', 'Profit/USDT', 'BuyDateAndTime', 'SellDateAndTime']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             print("Fill Successfully Created and Header Setted for that file.")
@@ -79,20 +83,41 @@ def setGridInstances():
         print(i)
         gridInstance["instance"][i]["value"] = ((i+1) * 50) * -1
         gridInstance["instance"][i]["status"] = False
+        gridInstance["instance"][i]["buytimeMA7"] = 0
+        gridInstance["instance"][i]["selltimeMA7"] = 0
+        gridInstance["instance"][i]["buytimeMA25"] = 0
+        gridInstance["instance"][i]["selltimeMA25"] = 0
+        gridInstance["instance"][i]["BTCammountbuying"] = 0
+        gridInstance["instance"][i]["buytimepriceBinanceBTC/USDT"] = 0
+        gridInstance["instance"][i]["selltimepricebinanceBTC/USDT"] = 0
+        gridInstance["instance"][i]["selldateandtime"] = 0
 
 def executeTrade(gridNo):
-    currentValue=exchange.fetch_ticker(orderCoinPair)["bid"]
-    with open('Dataset/MA7_MA25_Trading_1min.csv', 'a+', newline='') as csvfile:
-        row=[obj1.result["data"][0]["result"]["value"], obj1.result["data"][1]["result"]["value"], currentValue, time.strftime("%H:%M:%S", time.localtime())]
-        writer = csv.writer(csvfile)
-        writer.writerow(row)
-        print(row)
-        print(gridInstance)  
+    now = datetime.now()
+    print("-------------------Executing Grid No %d Order-----------------",(gridNo))
+    gridInstance["instance"][gridNo]["buytimeMA7"] = obj1.result["data"][0]["result"]["value"]
+    gridInstance["instance"][gridNo]["buytimeMA25"] = obj1.result["data"][1]["result"]["value"]
+    gridInstance["instance"][gridNo]["BTCammountbuying"] = tradeAmmountBTC
+    gridInstance["instance"][gridNo]["buytimepriceBinanceBTC/USDT"] = exchange.fetch_ticker(orderCoinPair)["bid"]
+    gridInstance["instance"][gridNo]["buydateandtime"] = now.strftime("%d/%m/%Y %H:%M:%S")
+    gridInstance["instance"][gridNo]["status"] = True
+    print(gridInstance["instance"][gridNo])
 
 def endTrade(gridNo):
-    print(gridNo)
+    print("-------------------Ending Grid No %d Order-----------------",(gridNo))
+    with open('Dataset/MA7_MA25_Trading_1min.csv', 'a+', newline='') as csvfile:
+        currentBTCUSDTprice = exchange.fetch_ticker(orderCoinPair)["bid"]
+        currentProfitUSDT = float(float(currentBTCUSDTprice * tradeAmmountBTC ) - float(gridInstance["instance"][gridNo]["buytimepriceBinanceBTC/USDT"] * tradeAmmountBTC))
+        now = datetime.now()
+        row=[gridInstance["instance"][gridNo]["value"], gridInstance["instance"][gridNo]["buytimeMA7"], gridInstance["instance"][gridNo]["buytimeMA25"], obj1.result["data"][0]["result"]["value"], obj1.result["data"][1]["result"]["value"], tradeAmmountBTC, gridInstance["instance"][gridNo]["buytimepriceBinanceBTC/USDT"], currentBTCUSDTprice , currentProfitUSDT, now.strftime("%d/%m/%Y %H:%M:%S") ]
+        gridInstance["instance"][gridNo]["status"] = False
+        writer = csv.writer(csvfile)
+        writer.writerow(row)
+        print("Order Grid No %d Successfully sold and Logged", gridNo)
+        print(row)  
+    
 
-def ApplyStrategy(obj1):
+def ApplyStrategy():
     global gridInstance
     ma7=obj1.result["data"][0]["result"]["value"]
     ma25=obj1.result["data"][1]["result"]["value"]
@@ -109,13 +134,13 @@ def ApplyStrategy(obj1):
             executeTrade(2)  
 
     if  gridInstance["instance"][0]["status"]:
-        if (ma7-ma25)>= (gridInstance["instance"][0]["value"] + gridDifference ):
+        if (ma7-ma25) >= (gridInstance["instance"][0]["value"] + gridDifference ):
             endTrade(0)          
     elif gridInstance["instance"][1]["status"]:
-        if (ma7-ma25)>= (gridInstance["instance"][1]["value"] + gridDifference ):
+        if (ma7-ma25) >= (gridInstance["instance"][1]["value"] + gridDifference ):
             endTrade(1) 
     elif gridInstance["instance"][2]["status"]:
-        if (ma7-ma25)>= (gridInstance["instance"][2]["value"] + gridDifference ):
+        if (ma7-ma25) >= (gridInstance["instance"][2]["value"] + gridDifference ):
             endTrade(2) 
 
 def RunBot():
@@ -125,6 +150,7 @@ def RunBot():
         global writer
         global csvfile
         global gridInstance
+        global obj1
         obj1 = API.taapi.TaapiIndicator("binance","BTC/USDT","1m",indicator)
         obj1.SetIndicatorsValue()
     except (requests.ConnectionError, requests.Timeout) as exception:
