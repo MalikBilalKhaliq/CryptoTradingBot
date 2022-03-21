@@ -135,13 +135,13 @@ def ApplyStrategy():
             executeTrade(2)  
 
     if  gridInstance["instance"][0]["status"]:
-        if (ma7-ma25) >= (gridInstance["instance"][0]["value"] + gridDifference ):
+        if (ma7-ma25) >= (gridInstance["instance"][0]["value"] + gridDifference ) and gridInstance["instance"][0]["buytimepriceBinanceBTC/USDT"] < exchange.fetch_ticker(orderCoinPair)["bid"]:
             endTrade(0)          
     elif gridInstance["instance"][1]["status"]:
-        if (ma7-ma25) >= (gridInstance["instance"][1]["value"] + gridDifference ):
+        if (ma7-ma25) >= (gridInstance["instance"][1]["value"] + gridDifference ) and gridInstance["instance"][1]["buytimepriceBinanceBTC/USDT"] < exchange.fetch_ticker(orderCoinPair)["bid"]:
             endTrade(1) 
     elif gridInstance["instance"][2]["status"]:
-        if (ma7-ma25) >= (gridInstance["instance"][2]["value"] + gridDifference ):
+        if (ma7-ma25) >= (gridInstance["instance"][2]["value"] + gridDifference ) and gridInstance["instance"][2]["buytimepriceBinanceBTC/USDT"] < exchange.fetch_ticker(orderCoinPair)["bid"]:
             endTrade(2) 
 
 def RunBot():
